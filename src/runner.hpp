@@ -1,53 +1,42 @@
 #pragma once
 
-#include "bulk.hpp"
-#include "command.hpp"
-
 #include <iostream>
+#include <sstream>
 #include <string>
+
+#include "async/mq.hpp"
+#include "processor.hpp"
 
 class Runner {
   private:
-    std::shared_ptr<CommandQueue> queue_;
-    int blockSize_;
+    CommandProcessor proc_;
+    otus::StringMQ mqueue_;
+    std::string async_buffer;
 
   public:
-    Runner(int blockSize) : blockSize_(blockSize) {
-        queue_ = std::make_shared<CommandQueue>();
-    }
+    Runner(int blockSize)
+        : proc_(CommandProcessor(blockSize)),
+          mqueue_("async", otus::StringMQ::EndpointType::Server, 10, 1024) {}
 
     bool DoWork() {
+        auto async_callback = [this](const std::string &message) {
+            async_buffer += message;
+            if (message.find('\n') == std::string::npos) {
+                return;
+            }
+
+            std::string filtered;
+            std::stringstream sstream(async_buffer);
+            while (std::getline(sstream, filtered, '\n')) {
+                proc_.push(filtered);
+            }
+            async_buffer = async_buffer.substr(async_buffer.find_last_of('\n') + 1);
+        };
+        mqueue_.attach(async_callback);
+
         std::string line;
-        int counter = 0, depth = 0;
         while (std::getline(std::cin, line)) {
-            ++counter;
-
-            if (line.compare("{") == 0) {
-                counter = 0;
-
-                if (depth == 0) {
-                    OnBulkFlush(queue_).Execute();
-                }
-                ++depth;
-            } else if (line.compare("}") == 0) {
-                counter = 0;
-
-                --depth;
-                if (depth == 0) {
-                    OnBulkFlush(queue_).Execute();
-                }
-            } else {
-                OnBulkAppend(queue_, line).Execute();
-            }
-
-            if (counter == blockSize_) {
-                OnBulkFlush(queue_).Execute();
-                counter = 0;
-            }
-        }
-
-        if (depth == 0) {
-            OnBulkFlush(queue_).Execute();
+            proc_.push(line);
         }
         return true;
     }
