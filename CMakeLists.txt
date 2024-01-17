@@ -26,21 +26,27 @@ target_include_directories(version
     PRIVATE "${CMAKE_BINARY_DIR}"
 )
 
+# Describe build targets
 add_library(async SHARED src/async/async.cpp)
 set_target_properties(async PROPERTIES PUBLIC_HEADER "src/async/async.hpp")
 
-# Describe build targets
 add_executable(bulk src/main.cpp)
 target_link_libraries(bulk PRIVATE
     version
     async
 )
 
+add_executable(client src/async/client/main.cpp)
+target_link_libraries(client
+    async
+)
+
 set_compile_options(async)
 set_compile_options(bulk)
+set_compile_options(client)
 set_compile_options(version)
 
-install(TARGETS bulk
+install(TARGETS bulk client
     RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
 )
 
