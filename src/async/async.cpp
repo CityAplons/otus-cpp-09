@@ -17,6 +17,7 @@ struct AsyncHandle {
 
 handle_t
 connect(std::size_t bulk) {
+    // TODO: make custom command to send bulk size via ipc
     return new AsyncHandle(bulk);
 }
 

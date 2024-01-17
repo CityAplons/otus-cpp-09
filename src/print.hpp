@@ -6,6 +6,7 @@
 struct Print {
     std::vector<std::ostream*> streams;
     void AddStream(std::ostream& stream) { streams.push_back(&stream); }
+    void RemoveStream() { streams.pop_back(); }
 };
 
 template <class T>
