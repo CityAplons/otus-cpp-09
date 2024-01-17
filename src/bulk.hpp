@@ -3,11 +3,9 @@
 #include "command.hpp"
 #include "print.hpp"
 
-#include <chrono>
-#include <format>
-#include <fstream>
 #include <memory>
 #include <queue>
+#include <sstream>
 #include <string>
 
 class CommandQueue {
@@ -29,24 +27,16 @@ class CommandQueue {
             return;
         }
 
-        using namespace std::chrono;
-        const auto stamp = current_zone()->to_local(system_clock::now());
-        const auto unixStamp =
-            duration_cast<seconds>(stamp.time_since_epoch()).count();
-        std::string fileName =
-            std::format("bulk{}.log", std::to_string(unixStamp));
-        std::ofstream file(fileName);
-
-        Print out{};
-        out.AddStream(std::cout);
-        out.AddStream(file);
-
+        std::stringstream out;
         out << "bulk:";
         while (!fifo_.empty()) {
             out << ' ' << fifo_.front();
             fifo_.pop();
         }
         out << '\n';
+
+        threaded::FilePrint().write(out.str());
+        threaded::ConsolePrint().write(out.str());
     }
 };
 
