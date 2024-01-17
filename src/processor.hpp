@@ -43,9 +43,11 @@ class CommandProcessor {
             if (depth_ == 0) {
                 OnBulkFlush(queue_).Execute();
             }
-        } else if (line.compare("=") == 0) {
+        } else if (line[0] == '=') {
+            // Set new block-size by command
             counter_ = 0;
-            otus::Log::Get().Info("Set-size command called");
+            blockSize_ = std::abs(std::atoi(&line[1]));
+            otus::Log::Get().Warn("Set-size {}", blockSize_);
         } else {
             OnBulkAppend(queue_, line).Execute();
         }

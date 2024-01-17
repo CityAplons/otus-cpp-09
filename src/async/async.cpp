@@ -1,6 +1,7 @@
 #include "async.hpp"
 #include "mq.hpp"
 
+#include <format>
 #include <limits.h>
 #include <unistd.h>
 
@@ -17,8 +18,9 @@ struct AsyncHandle {
 
 handle_t
 connect(std::size_t bulk) {
-    // TODO: make custom command to send bulk size via ipc
-    return new AsyncHandle(bulk);
+    AsyncHandle *priv = new AsyncHandle(bulk);
+    priv->client.send(std::format("={}\n", bulk));
+    return priv;
 }
 
 void
