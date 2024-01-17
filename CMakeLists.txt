@@ -1,14 +1,14 @@
 cmake_minimum_required(VERSION 3.10)
 
 set(PROJECT_REVISION 1 CACHE INTERNAL "Project revision (CI)")
-project(cmake_template
+project(bulk-async
     VERSION 0.0.${PROJECT_REVISION}
     DESCRIPTION "General CMake template for C++ projects by N.Mikhailovskiy"
     HOMEPAGE_URL "https://github.com/CityAplons/cmake-multiplatform-template"
     LANGUAGES CXX
 )
 
-set_property(GLOBAL PROPERTY G_CXX_STANDARD 14)
+set_property(GLOBAL PROPERTY G_CXX_STANDARD 20)
 set_property(GLOBAL PROPERTY G_CXX_STANDARD_REQUIRED ON)
 
 # Include utility functions
@@ -26,17 +26,28 @@ target_include_directories(version
     PRIVATE "${CMAKE_BINARY_DIR}"
 )
 
+add_library(async SHARED src/async/async.cpp)
+set_target_properties(async PROPERTIES PUBLIC_HEADER "src/async/async.hpp")
+
 # Describe build targets
-add_executable(helloworld_cli src/hello.cpp)
-target_link_libraries(helloworld_cli PRIVATE
+add_executable(bulk src/main.cpp)
+target_link_libraries(bulk PRIVATE
     version
+    async
 )
 
-set_compile_options(helloworld_cli)
+set_compile_options(async)
+set_compile_options(bulk)
 set_compile_options(version)
 
-install(TARGETS helloworld_cli
+install(TARGETS bulk
     RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+)
+
+install(TARGETS async
+    ARCHIVE DESTINATION ${CMAKE_INSTALL_BINDIR}/async
+    LIBRARY DESTINATION ${CMAKE_INSTALL_BINDIR}/async
+    PUBLIC_HEADER DESTINATION ${CMAKE_INSTALL_BINDIR}/async
 )
 
 # Describe unit tests
@@ -45,6 +56,7 @@ add_unit_test(test/test_version.cpp version)
 
 # Packaging
 option(MAKE_PACKAGE "Add 'package' and 'package_source' build targets for packages" ON)
-if (MAKE_PACKAGE)
-	add_subdirectory(cmake/packaging)
+
+if(MAKE_PACKAGE)
+    add_subdirectory(cmake/packaging)
 endif()
