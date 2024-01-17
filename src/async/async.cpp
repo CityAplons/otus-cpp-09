@@ -6,13 +6,13 @@
 
 namespace async {
 
-constexpr static size_t queue_len_ = 10;
+constexpr static size_t msg_max_len_ = 1024;
 struct AsyncHandle {
     otus::StringMQ client;
 
     AsyncHandle(size_t bulk_len)
         : client(otus::StringMQ("async", otus::StringMQ::EndpointType::Client,
-                                queue_len_, bulk_len)) {}
+                                bulk_len, msg_max_len_)) {}
 };
 
 handle_t
