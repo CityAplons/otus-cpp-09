@@ -23,7 +23,7 @@ class CommandProcessor {
         }
     }
 
-    void push(std::string &line) {
+    void push(const std::string &line) {
         ++counter_;
 
         if (line.compare("{") == 0) {

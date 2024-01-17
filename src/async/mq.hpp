@@ -50,16 +50,19 @@ class StringMQ {
             return;
         }
 
-        std::thread t([this]() {
+        rx_dispather_ = std::thread([this]() {
             while (run_) {
                 size_t msgsize = attr_rx_.mq_msgsize;
-                std::string msg;
-                msg.reserve(msgsize);
-                memset(msg.data(), '\0', msg.capacity());
-                assert(mq_receive(mqd_rx_, msg.data(), msgsize, &prio_) != -1 &&
+                char buf[1024];
+                // std::string msg;
+                // msg.reserve(msgsize);
+                memset(buf, '\0', msgsize);
+                int result = mq_receive(mqd_rx_, buf, msgsize, &prio_);
+                assert(result != -1 &&
                        "Error reading the client message");
 
                 {
+                    std::string msg(buf);
                     std::lock_guard<std::mutex> guard(callbacks_lock_);
                     for (auto &&cb : callbacks_) {
                         cb(msg);
@@ -71,6 +74,10 @@ class StringMQ {
 
     virtual ~StringMQ() {
         run_ = false;
+        if (rx_dispather_.joinable()) {
+            rx_dispather_.join();
+        }
+
         mq_close(mqd_rx_);
         mq_close(mqd_tx_);
     }

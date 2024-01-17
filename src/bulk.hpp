@@ -16,7 +16,7 @@ class CommandQueue {
 
   public:
     std::string &GetLastCmd() { return fifo_.front(); }
-    void Add(std::string &cmd) {
+    void Add(const std::string &cmd) {
         if (cmd.size() == 0) {
             return;
         }
@@ -56,7 +56,7 @@ class OnBulkAppend : public Command {
     std::string data_;
 
   public:
-    OnBulkAppend(std::shared_ptr<CommandQueue> &queue, std::string &cmd)
+    OnBulkAppend(std::shared_ptr<CommandQueue> &queue, const std::string &cmd)
         : queue_(queue), data_(cmd) {}
     void Execute() override { queue_->Add(data_); }
 };
