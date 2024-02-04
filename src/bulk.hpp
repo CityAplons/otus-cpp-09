@@ -14,7 +14,8 @@ class CommandQueue {
     std::shared_ptr<IPrintable> printer_;
 
   public:
-    CommandQueue(std::shared_ptr<IPrintable> printer) : printer_(printer) {}
+    explicit CommandQueue(std::shared_ptr<IPrintable> printer)
+        : printer_(std::move(printer)) {}
 
     std::string &GetLastCmd() { return fifo_.front(); }
     void Add(const std::string &cmd) {
@@ -40,24 +41,4 @@ class CommandQueue {
 
         printer_->write(out.str());
     }
-};
-
-class OnBulkAppend : public Command {
-  private:
-    std::shared_ptr<CommandQueue> queue_;
-    std::string data_;
-
-  public:
-    OnBulkAppend(std::shared_ptr<CommandQueue> &queue, const std::string &cmd)
-        : queue_(queue), data_(cmd) {}
-    void Execute() override { queue_->Add(data_); }
-};
-
-class OnBulkFlush : public Command {
-  private:
-    std::shared_ptr<CommandQueue> queue_;
-
-  public:
-    OnBulkFlush(std::shared_ptr<CommandQueue> &queue) : queue_(queue) {}
-    void Execute() override { queue_->ExecuteAll(); }
 };

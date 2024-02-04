@@ -7,11 +7,9 @@
 
 namespace async {
 
-otus::ConcurrentRunner g_runner;
-
 handle_t
 connect(std::size_t bulk) {
-    return static_cast<void*>(g_runner.connect(bulk));
+    return static_cast<void *>(otus::ConcurrentRunner::Get().connect(bulk));
 }
 
 void
@@ -21,7 +19,7 @@ receive(handle_t handle, const char *data, std::size_t size) {
     }
 
     auto priv = static_cast<otus::ConcurrentRunner::runner_t>(handle);
-    g_runner.receive(priv, data, size);
+    otus::ConcurrentRunner::Get().receive(priv, data, size);
 }
 
 void
@@ -32,7 +30,7 @@ disconnect(handle_t handle) {
     }
 
     auto priv = static_cast<otus::ConcurrentRunner::runner_t>(handle);
-    g_runner.disconnect(priv);
+    otus::ConcurrentRunner::Get().disconnect(priv);
 }
 
 }   // namespace async

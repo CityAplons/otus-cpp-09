@@ -1,15 +1,14 @@
 #pragma once
 
+#include "log.hpp"
+
 #include <chrono>
 #include <cstdlib>
 #include <format>
 #include <fstream>
-#include <functional>
 #include <iostream>
-#include <queue>
+#include <list>
 #include <string>
-#include <thread>
-#include <vector>
 
 class IPrintable {
   public:
@@ -17,45 +16,39 @@ class IPrintable {
     virtual ~IPrintable() {}
 };
 
-struct Print {
-    std::vector<std::ostream *> streams;
-    void AddStream(std::ostream &stream) { streams.push_back(&stream); }
-    void RemoveStream() { streams.pop_back(); }
-};
-
-template <class T>
-Print &
-operator<<(Print &fork, T data) {
-    for (auto &&stream : fork.streams) {
-        *stream << data;
-    }
-    return fork;
-}
-
-Print &
-operator<<(Print &fork, std::ostream &(*f)(std::ostream &) ) {
-    for (auto &&stream : fork.streams) {
-        *stream << f;
-    }
-    return fork;
-}
-
-template <class T>
-Print &
-operator<<(Print &fork, std::ostream &(*f)(std::ostream &, T)) {
-    for (auto &&stream : fork.streams) {
-        *stream << f;
-    }
-    return fork;
-}
-
-class LegacyPrint : public IPrintable {
-  private:
-    Print out_;
+class PrintComposite : public IPrintable {
+  protected:
+    std::list<std::shared_ptr<IPrintable>> children_;
 
   public:
-    LegacyPrint() noexcept { out_.AddStream(std::cout); }
+    ~PrintComposite() {
+        otus::Log::Get().Debug("dtor {}", otus::get_type_name<decltype(this)>());
+    }
 
+    void Add(std::shared_ptr<IPrintable> component) {
+        children_.emplace_back(std::move(component));
+    }
+
+    void Remove(std::shared_ptr<IPrintable> component) {
+        children_.remove(component);
+    }
+
+    void write(const std::string &data) final {
+        for (auto &&c : children_) {
+            c->write(data);
+        }
+    }
+};
+
+class ConsolePrint : public IPrintable {
+    public:
+    void write(const std::string &data) final {
+        std::cout << data;
+    };
+};
+
+class FilePrint : public IPrintable {
+    public:
     void write(const std::string &data) final {
         using namespace std::chrono;
         const auto stamp = current_zone()->to_local(system_clock::now());
@@ -65,11 +58,7 @@ class LegacyPrint : public IPrintable {
             std::format("bulk{}.log", std::to_string(unixStamp));
 
         std::ofstream file(fileName);
-
-        out_.AddStream(file);
-        out_ << data;
-        out_.RemoveStream();
-
+        file << data;
         file.close();
     };
 };

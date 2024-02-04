@@ -33,7 +33,6 @@ set_target_properties(async PROPERTIES PUBLIC_HEADER "src/async/async.hpp")
 add_executable(bulk src/main.cpp)
 target_link_libraries(bulk PRIVATE
     version
-    async
 )
 
 add_executable(client src/async/client/main.cpp)

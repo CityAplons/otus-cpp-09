@@ -2,74 +2,116 @@
 
 #include "print.hpp"
 
-template <size_t pool_size = 1> class Pool {
-  private:
-    std::array<std::thread, pool_size> threads_;
+#include <atomic>
+#include <condition_variable>
+#include <filesystem>
+#include <mutex>
+#include <queue>
+#include <thread>
 
+template <typename T> class SQueue {
   public:
-    void run(std::function<void(const std::string &)> task,
-             const std::string &data) {
-        // trivial impl, async seems to be not using the thread pool
-        for (auto &&thread : threads_) {
-            if (thread.joinable())
-                continue;
+    void push(const T &data) {
+        {
+            std::lock_guard<std::mutex> lock(mutex_);
+            queue_.push(std::move(data));
+        }
+        sync_.notify_one();
+    }
 
-            thread = std::thread(task, data);
-            return;
+    bool try_pop(T &data) {
+        std::unique_lock<std::mutex> lock(mutex_);
+        auto timeout = std::chrono::milliseconds(100);
+        if (!sync_.wait_for(lock, timeout,
+                            [this] { return !queue_.empty(); })) {
+            return false;
         }
 
-        for (auto &&thread : threads_) {
-            if (!thread.joinable())
-                continue;
+        data = std::move(queue_.front());
+        queue_.pop();
+        return true;
+    }
 
-            thread.join();
-            thread = std::thread(task, data);
-            return;
+    size_t size() {
+        std::lock_guard<std::mutex> lock(mutex_);
+        return queue_.size();
+    }
+
+  private:
+    std::queue<T> queue_;
+    std::mutex mutex_;
+    std::condition_variable sync_;
+};
+
+template <typename action, size_t pool_size = 1>
+class ThreadedPrintable : public IPrintable {
+  private:
+    SQueue<std::string> queue_;
+    std::array<std::thread, pool_size> threads_;
+    std::atomic_bool stop_ = false;
+
+    void do_work(void) {
+        action work;
+        while (!stop_) {
+            std::string data;
+            if (queue_.try_pop(data)) {
+                work(data);
+            }
         }
     }
 
-    ~Pool() {
+  public:
+    ThreadedPrintable() {
         for (auto &&thread : threads_) {
-            if (!thread.joinable())
-                continue;
+            thread = std::thread(&ThreadedPrintable::do_work, this);
+        }
+    }
 
+    ~ThreadedPrintable() {
+        // Await for threads to do their work
+        while (queue_.size()) {
+            std::this_thread::sleep_for(std::chrono::milliseconds(100));
+        }
+
+        // Stop threads
+        stop_ = true;
+        for (auto &&thread : threads_) {
             thread.join();
         }
-    };
+    }
+
+    void write(const std::string &data) final { queue_.push(data); }
 };
 
-class FilePrint : public IPrintable {
-  private:
-    Pool<2> workers_;
+struct FilePrintFunctor {
+   void operator()(const std::string &data) {
+        auto thread_id =
+            std::hash<std::thread::id>{}(std::this_thread::get_id());
 
-  public:
-    void write(const std::string &data) final {
-        auto task = [](const std::string &local_data) {
-            using namespace std::chrono;
-            const auto stamp = current_zone()->to_local(system_clock::now());
-            const auto unixStamp =
-                duration_cast<seconds>(stamp.time_since_epoch()).count();
-            std::string fileName = std::format(
-                "bulk{}_{:x}.log", std::to_string(unixStamp), std::rand());
+        using namespace std::chrono;
+        const auto stamp = current_zone()->to_local(system_clock::now());
+        const auto unixStamp =
+            duration_cast<seconds>(stamp.time_since_epoch()).count();
 
-            std::ofstream file(fileName);
-            file << local_data;
-            file.close();
-        };
-        workers_.run(task, data);
-    };
+        int i = 0;
+        std::string fileName = std::format(
+            "bulk{}_{:x}.log", std::to_string(unixStamp), thread_id);
+        while (std::filesystem::exists(fileName)) {
+            ++i;
+            fileName = std::format("bulk{}_{:x}_{}.log",
+                                   std::to_string(unixStamp), thread_id, i);
+        }
+
+        std::ofstream file(fileName);
+        file << data;
+        std::flush(file);
+        file.close();
+    }
 };
 
-class ConsolePrint : public IPrintable {
-  private:
-    Pool<1> workers_;
-
-  public:
-    void write(const std::string &data) final {
-        auto task = [](const std::string &local_data) {
-            std::cout << local_data;
-            std::flush(std::cout);
-        };
-        workers_.run(task, data);
-    };
+struct ConsolePrintFunctor {
+  void operator()(const std::string &data) {
+        std::cout << data;
+        std::flush(std::cout);
+    }
 };
