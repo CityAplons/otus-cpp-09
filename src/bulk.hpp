@@ -11,8 +11,11 @@
 class CommandQueue {
   private:
     std::queue<std::string> fifo_;
+    std::shared_ptr<IPrintable> printer_;
 
   public:
+    CommandQueue(std::shared_ptr<IPrintable> printer) : printer_(printer) {}
+
     std::string &GetLastCmd() { return fifo_.front(); }
     void Add(const std::string &cmd) {
         if (cmd.size() == 0) {
@@ -35,8 +38,7 @@ class CommandQueue {
         }
         out << '\n';
 
-        threaded::FilePrint().write(out.str());
-        threaded::ConsolePrint().write(out.str());
+        printer_->write(out.str());
     }
 };
 

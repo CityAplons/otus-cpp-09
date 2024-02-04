@@ -1,5 +1,5 @@
 #include "async.hpp"
-#include "mq.hpp"
+#include "lib_runner.hpp"
 
 #include <format>
 #include <limits.h>
@@ -7,20 +7,11 @@
 
 namespace async {
 
-constexpr static size_t msg_max_len_ = 1024;
-struct AsyncHandle {
-    otus::StringMQ client;
-
-    AsyncHandle(size_t bulk_len)
-        : client(otus::StringMQ("async", otus::StringMQ::EndpointType::Client,
-                                bulk_len, msg_max_len_)) {}
-};
+otus::ConcurrentRunner g_runner;
 
 handle_t
 connect(std::size_t bulk) {
-    AsyncHandle *priv = new AsyncHandle(bulk);
-    priv->client.send(std::format("={}\n", bulk));
-    return priv;
+    return static_cast<void*>(g_runner.connect(bulk));
 }
 
 void
@@ -29,9 +20,8 @@ receive(handle_t handle, const char *data, std::size_t size) {
         return;
     }
 
-    AsyncHandle *priv = static_cast<AsyncHandle *>(handle);
-    std::string str_data(data, data + size);
-    priv->client.send(str_data);
+    auto priv = static_cast<otus::ConcurrentRunner::runner_t>(handle);
+    g_runner.receive(priv, data, size);
 }
 
 void
@@ -41,8 +31,8 @@ disconnect(handle_t handle) {
         return;
     }
 
-    AsyncHandle *priv = static_cast<AsyncHandle *>(handle);
-    priv->~AsyncHandle();
+    auto priv = static_cast<otus::ConcurrentRunner::runner_t>(handle);
+    g_runner.disconnect(priv);
 }
 
 }   // namespace async

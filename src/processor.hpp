@@ -6,13 +6,16 @@
 
 class CommandProcessor {
   public:
-    CommandProcessor() : queue_(std::make_shared<CommandQueue>()) {
+    CommandProcessor()
+        : printer_(std::make_shared<LegacyPrint>()),
+          queue_(std::make_shared<CommandQueue>(printer_)) {
         otus::Log::Get().Info("Bulk created with default block size = {}",
                               blockSize_);
     };
 
-    CommandProcessor(int blockSize)
-        : blockSize_(blockSize), queue_(std::make_shared<CommandQueue>()) {
+    CommandProcessor(int blockSize, std::shared_ptr<IPrintable> printer)
+        : blockSize_(blockSize), printer_(printer),
+          queue_(std::make_shared<CommandQueue>(printer)) {
         otus::Log::Get().Info("Bulk created with new block size {}",
                               blockSize_);
     }
@@ -47,7 +50,10 @@ class CommandProcessor {
             // Set new block-size by command
             counter_ = 0;
             blockSize_ = std::abs(std::atoi(&line[1]));
-            otus::Log::Get().Warn("Set-size {}", blockSize_);
+
+            std::string info = std::format("Set-size {}", blockSize_);
+            otus::Log::Get().Warn(info);
+            printer_->write(info);
         } else {
             OnBulkAppend(queue_, line).Execute();
         }
@@ -62,5 +68,6 @@ class CommandProcessor {
     int counter_ = 0, depth_ = 0;
     int blockSize_ = 1;
 
+    std::shared_ptr<IPrintable> printer_;
     std::shared_ptr<CommandQueue> queue_;
 };
