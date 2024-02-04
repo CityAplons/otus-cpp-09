@@ -26,8 +26,7 @@ class ConcurrentRunner {
     }
 
     ~ConcurrentRunner() {
-        otus::Log::Get().Debug("dtor {}", get_type_name<decltype(this)>());
-        // std::this_thread::sleep_for(std::chrono::milliseconds(500)); // do not know, why FileThreadedPrint dtor called 
+        otus::Log::Get().Debug("dtor {}", get_type_name<decltype(this)>()); 
     }
 
     ConcurrentRunner(const ConcurrentRunner &root) = delete;

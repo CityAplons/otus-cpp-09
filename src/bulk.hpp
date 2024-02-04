@@ -1,6 +1,5 @@
 #pragma once
 
-#include "command.hpp"
 #include "print.hpp"
 
 #include <memory>

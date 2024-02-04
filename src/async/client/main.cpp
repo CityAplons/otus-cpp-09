@@ -5,7 +5,6 @@
 
 int
 main(int, char *[]) {
-    otus::Log::Get().SetSeverity(otus::Log::DEBUG);
     std::size_t bulk = 5;
     auto h = async::connect(bulk);
     auto h2 = async::connect(bulk);

@@ -1,7 +1,6 @@
 #pragma once
 
 #include "bulk.hpp"
-#include "command.hpp"
 #include "log.hpp"
 
 class CommandProcessor {
